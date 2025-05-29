@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Insta Wizard - Firebase Integrated</title>
+  <link rel="icon" href="https://i.ibb.co/PZ2t2rdR/nexus-xmd.jpg" />
+  <style>
+    body {
+      background-color: #0d0d0d;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px;
+      border: none;
+      border-radius: 5px;
+    }
+    input {
+      width: 80%;
+    }
+    button {
+      background-color: #1da1f2;
+      color: white;
+      cursor: pointer;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Insta Wizard</h1>
+  <div id="auth-section">
+    <h2>Sign Up / Log In</h2>
+    <input type="email" id="email" placeholder="Email" /><br />
+    <input type="password" id="password" placeholder="Password" /><br />
+    <button onclick="signup()">Sign Up</button>
+    <button onclick="login()">Login</button>
+  </div>
+
+  <div id="dashboard" class="hidden">
+    <h2>Welcome, <span id="user-email"></span></h2>
+    <p>Instagram Username: <input type="text" id="ig-username" placeholder="Your IG username" /></p>
+    <button onclick="saveIGUsername()">Save IG Username</button>
+    <p>Coins: <span id="coin-balance">0</span></p>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      setDoc,
+      doc,
+      getDoc
+    } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+    import {
+      getAuth,
+      createUserWithEmailAndPassword,
+      signInWithEmailAndPassword,
+      onAuthStateChanged,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCd13TH_5xNAZV5Jq31Hcc8g-DVAJ0BvE8",
+      authDomain: "instan-winzard.firebaseapp.com",
+      projectId: "instan-winzard",
+      storageBucket: "instan-winzard.firebasestorage.app",
+      messagingSenderId: "385729730554",
+      appId: "1:385729730554:web:365709df479402e3477643"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth();
+
+    const authSection = document.getElementById("auth-section");
+    const dashboard = document.getElementById("dashboard");
+    const userEmail = document.getElementById("user-email");
+    const coinBalance = document.getElementById("coin-balance");
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        authSection.classList.add("hidden");
+        dashboard.classList.remove("hidden");
+        userEmail.textContent = user.email;
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          coinBalance.textContent = data.coins;
+          document.getElementById("ig-username").value = data.igUsername || "";
+        } else {
+          await setDoc(doc(db, "users", user.uid), { email: user.email, coins: 0, igUsername: "" });
+          coinBalance.textContent = 0;
+        }
+      } else {
+        authSection.classList.remove("hidden");
+        dashboard.classList.add("hidden");
+      }
+    });
+
+    window.signup = async function () {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        await setDoc(doc(db, "users", user.uid), {
+          email: user.email,
+          coins: 0,
+          igUsername: ""
+        });
+        alert("Signup successful!");
+      } catch (error) {
+        alert(error.message);
+      }
+    };
+
+    window.login = async function () {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (error) {
+        alert(error.message);
+      }
+    };
+
+    window.saveIGUsername = async function () {
+      const username = document.getElementById("ig-username").value;
+      const user = auth.currentUser;
+      if (user) {
+        await setDoc(doc(db, "users", user.uid), {
+          email: user.email,
+          coins: Number(coinBalance.textContent),
+          igUsername: username
+        });
+        alert("Instagram username saved!");
+      }
+    };
+
+    window.logout = async function () {
+      await signOut(auth);
+    };
+  </script>
+</body>
+</html>
